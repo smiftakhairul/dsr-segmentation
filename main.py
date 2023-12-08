@@ -26,14 +26,14 @@ def analyze_audio(audio_data, threshold_rms, hop_length):
 
 def plot_waveform(audio_data, sr):
     plt.figure(figsize=(15, 4))
-    librosa.display.waveshow(audio_data, sr=sr)
+    librosa.display.waveshow(audio_data, sr=sr, color="navy")
     plt.title('Audio Waveform')
     plt.show()
 
 def plot_rms_energy(audio_data, sr, threshold_rms, hop_length):
     times = librosa.times_like(audio_data, sr=sr, hop_length=hop_length)
     plt.figure(figsize=(10, 4))
-    plt.plot(times, audio_data, label='RMS Energy')
+    plt.plot(times, audio_data, label='RMS Energy', color="navy")
     plt.axhline(threshold_rms, color='r', linestyle='--', label='Threshold')
     plt.xlabel('Time (s)')
     plt.ylabel('RMS Energy')
