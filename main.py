@@ -65,8 +65,13 @@ def create_output_directory(output_dir):
 
 def save_speech_segment(audio_data, segment, sr, output_path):
     start_frame, end_frame = map(int, (segment[0] * sr, segment[1] * sr))
-    segment_audio = AudioSegment(audio_data[start_frame:end_frame].tobytes(), frame_rate=sr, sample_width=audio_data.dtype.itemsize, channels=1)
-    segment_audio.export(output_path, format="wav")
+    segment_audio = audio_data[start_frame:end_frame]
+
+    try:
+        sf.write(output_path, segment_audio, sr)
+        print(f"Speech segment saved to {output_path}")
+    except Exception as e:
+        print(f"Error saving speech segment: {e}")
 
 def save_segments(audio_data, speech_segments, sr, output_dir='./files/output_segments'):
     create_output_directory(output_dir)
@@ -77,7 +82,7 @@ def save_segments(audio_data, speech_segments, sr, output_dir='./files/output_se
         print(f"Speech segment {i + 1} saved to {output_path}")
 
 def main():
-    audio_file_path = './files/audio.wav'
+    audio_file_path = './files/audio_en.wav'
     audio_data, sr = load_and_print_audio(audio_file_path)
 
     if audio_data is None:
