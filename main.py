@@ -4,11 +4,30 @@ import numpy as np
 import soundfile as sf
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
+from sklearn.cluster import KMeans
 
 from load_audio import load_audio
 from amplitude_analysis import amplitude_analysis
 from pause_detection import detect_pauses
 from speech_segmentation import speech_segmentation
+
+def auto_adjust_parameters(audio_data, sr):
+    # Extract features from the audio data
+    rms_energy = librosa.feature.rms(y=audio_data)
+    features = np.array([np.mean(rms_energy), np.std(rms_energy)])
+
+    # Perform K-means clustering
+    kmeans = KMeans(n_clusters=2, n_init=10)  # Explicitly set the value of n_init
+    kmeans.fit(features.reshape(-1, 1))
+
+    # Get cluster centers
+    cluster_centers = kmeans.cluster_centers_
+
+    # Determine threshold_rms and hop_length based on cluster centers
+    threshold_rms = cluster_centers.min() * 1.5  # Adjust the multiplier as needed
+    hop_length = int(np.floor(len(audio_data) / (5 * sr)))  # Adjust the divisor as needed
+
+    return threshold_rms, hop_length
 
 def load_and_print_audio(audio_file_path):
     audio_data, sr = load_audio(audio_file_path)
@@ -57,7 +76,7 @@ def detect_and_segment_pauses(rms_energy, threshold_rms, audio_data, sr):
         print("No speech segments found.")
         return None
 
-    print(f"Speech segments: {len(speech_segments)}")
+    print(f"Total Speech segments: {len(speech_segments)}")
     return speech_segments
 
 def create_output_directory(output_dir):
@@ -69,7 +88,6 @@ def save_speech_segment(audio_data, segment, sr, output_path):
 
     try:
         sf.write(output_path, segment_audio, sr)
-        print(f"Speech segment saved to {output_path}")
     except Exception as e:
         print(f"Error saving speech segment: {e}")
 
@@ -82,15 +100,20 @@ def save_segments(audio_data, speech_segments, sr, output_dir='./files/output_se
         print(f"Speech segment {i + 1} saved to {output_path}")
 
 def main():
-    audio_file_path = './files/audio_en.wav'
+    audio_file_path = './files/audio.wav'
     audio_data, sr = load_and_print_audio(audio_file_path)
 
     if audio_data is None:
         return
+    
+    # Automatically adjust parameters using unsupervised learning
+    threshold_rms, hop_length = auto_adjust_parameters(audio_data, sr)
+    print(f"Determined threshold_rms: {threshold_rms}")
+    print(f"Determined hop_length: {hop_length}")
 
-    # Set parameters
-    threshold_rms = 0.01
-    hop_length = 512
+    # # Set parameters
+    # threshold_rms = 0.01
+    # hop_length = 512
 
     # Plot audio waveform
     plot_waveform(audio_data, sr)
