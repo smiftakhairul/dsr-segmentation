@@ -60,6 +60,23 @@ def plot_rms_energy(audio_data, sr, threshold_rms, hop_length):
     plt.title('RMS Energy of the Audio Signal')
     plt.show()
 
+def plot_speech_segments(audio_data, sr, speech_segments):
+    plt.figure(figsize=(15, 4))
+    times = librosa.times_like(audio_data, sr=sr)
+    
+    # Plot the audio waveform
+    librosa.display.waveshow(audio_data, sr=sr, color="navy", alpha=0.5)
+
+    # Highlight speech segments
+    for segment in speech_segments:
+        start_time, end_time = segment
+        plt.axvspan(start_time, end_time, color='r', alpha=0.5)
+
+    plt.title('Speech Segments')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.show()
+
 def detect_and_segment_pauses(rms_energy, threshold_rms, audio_data, sr):
     pause_intervals = detect_pauses(rms_energy, threshold_rms)
 
@@ -106,14 +123,15 @@ def main():
     if audio_data is None:
         return
     
-    # Automatically adjust parameters using unsupervised learning
-    threshold_rms, hop_length = auto_adjust_parameters(audio_data, sr)
+    # # Automatically adjust parameters using unsupervised learning
+    # threshold_rms, hop_length = auto_adjust_parameters(audio_data, sr)
+    
+    # Set parameters
+    threshold_rms = 0.002
+    hop_length = 512
+    
     print(f"Determined threshold_rms: {threshold_rms}")
     print(f"Determined hop_length: {hop_length}")
-
-    # # Set parameters
-    # threshold_rms = 0.01
-    # hop_length = 512
 
     # Plot audio waveform
     plot_waveform(audio_data, sr)
@@ -136,6 +154,9 @@ def main():
     if speech_segments is not None:
         # Save speech segments to .wav files
         save_segments(audio_data, speech_segments, sr)
+        
+        # Plot speech segments on the audio waveform
+        plot_speech_segments(audio_data, sr, speech_segments)
 
 if __name__ == "__main__":
     main()
