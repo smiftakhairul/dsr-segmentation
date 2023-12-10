@@ -4,11 +4,30 @@ import numpy as np
 import soundfile as sf
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
+from sklearn.cluster import KMeans
 
 from load_audio import load_audio
 from amplitude_analysis import amplitude_analysis
 from pause_detection import detect_pauses
 from speech_segmentation import speech_segmentation
+
+def auto_adjust_parameters(audio_data, sr):
+    # Extract features from the audio data
+    rms_energy = librosa.feature.rms(y=audio_data)
+    features = np.array([np.mean(rms_energy), np.std(rms_energy)])
+
+    # Perform K-means clustering
+    kmeans = KMeans(n_clusters=2, n_init=10)  # Explicitly set the value of n_init
+    kmeans.fit(features.reshape(-1, 1))
+
+    # Get cluster centers
+    cluster_centers = kmeans.cluster_centers_
+
+    # Determine threshold_rms and hop_length based on cluster centers
+    threshold_rms = cluster_centers.min() * 1.5  # Adjust the multiplier as needed
+    hop_length = int(np.floor(len(audio_data) / (5 * sr)))  # Adjust the divisor as needed
+
+    return threshold_rms, hop_length
 
 def load_and_print_audio(audio_file_path):
     audio_data, sr = load_audio(audio_file_path)
@@ -41,6 +60,23 @@ def plot_rms_energy(audio_data, sr, threshold_rms, hop_length):
     plt.title('RMS Energy of the Audio Signal')
     plt.show()
 
+def plot_speech_segments(audio_data, sr, speech_segments):
+    plt.figure(figsize=(15, 4))
+    times = librosa.times_like(audio_data, sr=sr)
+    
+    # Plot the audio waveform
+    librosa.display.waveshow(audio_data, sr=sr, color="navy", alpha=0.5)
+
+    # Highlight speech segments
+    for segment in speech_segments:
+        start_time, end_time = segment
+        plt.axvspan(start_time, end_time, color='r', alpha=0.5)
+
+    plt.title('Speech Segments')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.show()
+
 def detect_and_segment_pauses(rms_energy, threshold_rms, audio_data, sr):
     pause_intervals = detect_pauses(rms_energy, threshold_rms)
 
@@ -57,7 +93,7 @@ def detect_and_segment_pauses(rms_energy, threshold_rms, audio_data, sr):
         print("No speech segments found.")
         return None
 
-    print(f"Speech segments: {len(speech_segments)}")
+    print(f"Total Speech segments: {len(speech_segments)}")
     return speech_segments
 
 def create_output_directory(output_dir):
@@ -65,8 +101,12 @@ def create_output_directory(output_dir):
 
 def save_speech_segment(audio_data, segment, sr, output_path):
     start_frame, end_frame = map(int, (segment[0] * sr, segment[1] * sr))
-    segment_audio = AudioSegment(audio_data[start_frame:end_frame].tobytes(), frame_rate=sr, sample_width=audio_data.dtype.itemsize, channels=1)
-    segment_audio.export(output_path, format="wav")
+    segment_audio = audio_data[start_frame:end_frame]
+
+    try:
+        sf.write(output_path, segment_audio, sr)
+    except Exception as e:
+        print(f"Error saving speech segment: {e}")
 
 def save_segments(audio_data, speech_segments, sr, output_dir='./files/output_segments'):
     create_output_directory(output_dir)
@@ -82,10 +122,16 @@ def main():
 
     if audio_data is None:
         return
-
+    
+    # # Automatically adjust parameters using unsupervised learning
+    # threshold_rms, hop_length = auto_adjust_parameters(audio_data, sr)
+    
     # Set parameters
-    threshold_rms = 0.01
+    threshold_rms = 0.002
     hop_length = 512
+    
+    print(f"Determined threshold_rms: {threshold_rms}")
+    print(f"Determined hop_length: {hop_length}")
 
     # Plot audio waveform
     plot_waveform(audio_data, sr)
@@ -108,6 +154,9 @@ def main():
     if speech_segments is not None:
         # Save speech segments to .wav files
         save_segments(audio_data, speech_segments, sr)
+        
+        # Plot speech segments on the audio waveform
+        plot_speech_segments(audio_data, sr, speech_segments)
 
 if __name__ == "__main__":
     main()
